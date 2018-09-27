@@ -31,6 +31,9 @@ int main() {
     //meters vehicle moves per time step
     float movement_per_timestep = 1.0f;
 
+    //set standard deviation of position:
+    float position_stdev = 1.0f;
+
     //set observation standard deviation:
     float observation_stdev = 1.0f;
 
@@ -72,7 +75,8 @@ int main() {
                                                 {}};
 
 
-    //TODO: initialize priors
+    // initialize priors
+    std::vector<float> priors = initialize_priors(map_size, landmark_positions, position_stdev);
 
     //UNCOMMENT TO SEE THIS STEP OF THE FILTER
     /*std::cout << "-----------PRIORS INIT--------------" << endl;
@@ -111,17 +115,18 @@ int main() {
         for (unsigned int i = 0; i < map_size; ++i) {
             float pseudo_position = float(i);
 
-            //TODO: get the motion model probability for each x position
+            // get the motion model probability for each x position
+            float motionModelP = motion_model(pseudo_position, movement_per_timestep, priors, map_size, control_stdev);
+
+            //get pseudo ranges
+            vector<float> pseudo_ranges = pseudo_range_estimator(landmark_positions, pseudo_position);
+
+            // get observation probability
+            float observationModelP = observation_model(landmark_positions, observations, pseudo_ranges, distance_max, observation_stdev);
 
 
-            //TODO: get pseudo ranges
-
-
-            //TODO: get observation probability
-
-
-            //TODO: calculate the ith posterior and pass to posteriors vector
-
+            //calculate the ith posterior and pass to posteriors vector
+            posteriors[i] = motionModelP * observationModelP;
 
             //UNCOMMENT TO SEE THIS STEP OF THE FILTER
             /*std::cout << motion_prob << "\t" << observation_prob << "\t"
@@ -140,7 +145,8 @@ int main() {
         */
 
 
-        //TODO: normalize posteriors (see helpers.h for a helper function)
+        //normalize posteriors (see helpers.h for a helper function)
+        posteriors = Helpers::normalize_vector(posteriors);
 
         //print to stdout
         //std::cout << posteriors[t] <<  "\t" << priors[t] << endl;
@@ -148,7 +154,8 @@ int main() {
         //UNCOMMENT TO SEE THIS STEP OF THE FILTER
         //std::cout << "----------NORMALIZED---------------" << endl;
 
-        //TODO: update priors
+        // update priors
+        priors = posteriors;
 
 
         //UNCOMMENT TO SEE THIS STEP OF THE FILTER
@@ -159,8 +166,8 @@ int main() {
 
 
         //print final posteriors vector to stdout
-        for (unsigned int p = 0; p < posteriors.size(); p++) {
-            std::cout << posteriors[p] << endl;
+        for (float posterior : posteriors) {
+            std::cout << posterior << endl;
         }
     }
 
@@ -176,13 +183,13 @@ float observation_model(std::vector<float> landmark_positions, std::vector<float
     float distance_prob = 1.0f;
 
     //run over current observation vector:
-    for (unsigned int z = 0; z < observations.size(); ++z) {
+    for (float observation : observations) {
 
         //define min distance:
         float pseudo_range_min;
 
         //check, if distance vector exists:
-        if (pseudo_ranges.size() > 0) {
+        if (!pseudo_ranges.empty()) {
             //set min distance:
             pseudo_range_min = pseudo_ranges[0];
             //remove this entry from pseudo_ranges-vector:
@@ -198,7 +205,7 @@ float observation_model(std::vector<float> landmark_positions, std::vector<float
         }
 
         //estimate the probabiity for observation model, this is our likelihood:
-        distance_prob *= Helpers::normpdf(observations[z], pseudo_range_min,
+        distance_prob *= Helpers::normpdf(observation, pseudo_range_min,
                                           observation_stdev);
 
     }

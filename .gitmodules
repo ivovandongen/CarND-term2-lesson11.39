@@ -1,3 +1,0 @@
-[submodule "deps/Eigen"]
-	path = deps/Eigen
-	url = git@github.com:cryos/eigen.git
